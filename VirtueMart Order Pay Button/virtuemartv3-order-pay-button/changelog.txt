@@ -1,0 +1,10 @@
+=====================================
+Date	  : Version: Description
+=====================================
+
+2018-06-29: v1.0.2 : Reversion and rebrand
+2018-01-21: v3.2.12 : Update pay order button for version 3.2.12.
+2015-11-05: v1.0.0 : Added pay order button for pending transactions.
+
+
+

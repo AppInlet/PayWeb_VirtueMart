@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+/*
+ * Copyright (c) 2018 PayGate (Pty) Ltd
+ *
+ * Author: App Inlet (Pty) Ltd
+ * 
+ * Released under the GNU General Public License
+ */
+-->
+<extension type="module" version="1.0.2" client="site" method="upgrade">
+    <name>VirtueMart Order Pay Button Module</name>
+    <author>App Inlet (Pty) Ltd</author>
+	<creationDate>June 2018</creationDate>
+	<copyright>(C) 2018 Open Source Matters. All rights reserved.</copyright>
+	<license>GNU General Public License version 2 or later; see LICENSE.txt</license>
+	<authorEmail>support@paygate.co.za</authorEmail>
+	<authorUrl>https://www.paygate.co.za</authorUrl>
+	<version>1.0.2</version>
+    <files>
+        <filename module="mod_virtuemart_order_pay_button">mod_virtuemart_order_pay_button.php</filename>
+        <filename>helper.php</filename>
+        <filename>index.html</filename>
+        <filename>changelog.txt</filename>
+        <filename>tmpl/default.php</filename>
+        <filename>tmpl/index.html</filename>
+    </files>
+</extension>
