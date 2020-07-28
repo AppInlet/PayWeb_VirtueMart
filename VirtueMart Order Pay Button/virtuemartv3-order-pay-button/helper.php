@@ -1,9 +1,9 @@
 <?php
 /*
- * Copyright (c) 2018 PayGate (Pty) Ltd
+ * Copyright (c) 2020 PayGate (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
- * 
+ *
  * Released under the GNU General Public License
  */
 // No direct access
@@ -20,7 +20,7 @@ class mod_virtuemart_order_pay_button
 {
     private $orderNumber;
 
-    public function mod_virtuemart_order_pay_button( $orderNumber = 0 )
+    public function __construct( $orderNumber = 0 )
     {
         $this->orderNumber = $orderNumber;
     }
@@ -33,9 +33,8 @@ class mod_virtuemart_order_pay_button
 
         $orderModel = new VirtueMartModelOrders();
         $orderid    = $orderModel->getOrderIdByOrderNumber( $orderNumber );
-        $order      = $orderModel->getOrder( $orderid );
 
-        return $order;
+        return $orderModel->getOrder( $orderid );
     }
 
     public function getCustomIdByTitle( $title )
@@ -62,10 +61,7 @@ class mod_virtuemart_order_pay_button
     public function isSsl()
     {
         $url = parse_url( JURI::base() );
-        if ( $url['scheme'] == 'https' ) {
-            return true;
-        } else {
-            return false;
-        }
+
+        return $url['scheme'] == 'https';
     }
 }
