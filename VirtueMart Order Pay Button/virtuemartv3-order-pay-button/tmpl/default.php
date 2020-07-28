@@ -1,15 +1,14 @@
 <?php
 /*
- * Copyright (c) 2018 PayGate (Pty) Ltd
+ * Copyright (c) 2020 PayGate (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
- * 
+ *
  * Released under the GNU General Public License
  */
 defined( '_JEXEC' ) or die( 'Restricted access' );
 
 // order_status_code
-$order   = $order;
 $details = $order['details']['BT'];
 
 $db = JFactory::getDBO();
@@ -70,7 +69,7 @@ $fields = array(
     'EMAIL'            => $email,
     'NOTIFY_URL'       => $notify_url,
     'USER1'            => $details->order_number,
-    'USER3'            => 'virtuemart-v3.2.12',
+    'USER3'            => 'virtuemart-v1.0.3',
 );
 $fields['CHECKSUM'] = md5( implode( '', $fields ) . $key );
 $url                = 'https://secure.paygate.co.za/payweb3/initiate.trans';
@@ -79,15 +78,42 @@ foreach ( $fields as $k => $value ) {
     $fields_string .= $k . '=' . urlencode( $value ) . '&';
 }
 $fields_string = rtrim( $fields_string, '&' );
-$ch            = curl_init();
+// Get host safely
+$possibleHostSources   = array( 'HTTP_X_FORWARDED_HOST', 'HTTP_HOST', 'SERVER_NAME', 'SERVER_ADDR' );
+$sourceTransformations = array(
+    "HTTP_X_FORWARDED_HOST" => function ( $value ) {
+        $elements = explode( ',', $value );
+        return trim( end( $elements ) );
+    },
+);
+$host = '';
+foreach ( $possibleHostSources as $source ) {
+    if ( !empty( $host ) ) {
+        break;
+    }
+
+    if ( empty( $_SERVER[$source] ) ) {
+        continue;
+    }
+
+    $host = $_SERVER[$source];
+    if ( array_key_exists( $source, $sourceTransformations ) ) {
+        $host = $sourceTransformations[$source]( $host );
+    }
+}
+
+// Remove port number from host
+$host = trim( preg_replace( '/:\d+$/', '', $host ) );
+
+$ch = curl_init();
 if ( !$helper->isSsl() ) {
-    curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, 0 );
-    curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, 0 );
+    curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, 1 );
+    curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, 2 );
 }
 curl_setopt( $ch, CURLOPT_URL, $url );
 curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
 curl_setopt( $ch, CURLOPT_NOBODY, false );
-curl_setopt( $ch, CURLOPT_REFERER, $_SERVER['HTTP_HOST'] );
+curl_setopt( $ch, CURLOPT_REFERER, $host );
 curl_setopt( $ch, CURLOPT_POST, 1 );
 curl_setopt( $ch, CURLOPT_POSTFIELDS, $fields_string );
 $response = curl_exec( $ch );
@@ -105,11 +131,11 @@ if ( isset( $products ) && is_array( $products ) && count( $products ) > 0 && $d
     </br></br>
     <div class="pay-bar">
       <span class="addtocart-button">
-        <input type="submit" name="pay" class="addtocart-button" value="Pay for Order using PayGate" title="Pay for Order using PayGate"/>
+        <input type="submit" name="pay" class="addtocart-button" value="Pay using PayGate" title="Pay using PayGate"/>
       </span>
     </div>
-	<input name="PAY_REQUEST_ID" type="hidden" value="<?php echo $pay_request_id; ?>" />
-	<input name="CHECKSUM" type="hidden" value="<?php echo $checksum; ?>" />
+    <input name="PAY_REQUEST_ID" type="hidden" value="<?php echo $pay_request_id; ?>" />
+    <input name="CHECKSUM" type="hidden" value="<?php echo $checksum; ?>" />
   </form>
 </div>
 <?php }
