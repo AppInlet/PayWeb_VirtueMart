@@ -1,7 +1,7 @@
 # PayWeb_VirtueMart
 ## PayGate VirtueMart plugin v1.0.3 for VirtueMart v3.8.4
 
-This is the PayGate PayWeb3 plugin for VirtueMart. Please feel free to contact the PayGate support team at support@paygate.co.za should you require any assistance.
+This is the PayGate PayWeb3 plugin for VirtueMart. Please feel free to contact the PayGate support team at supportsa@dpogroup.com should you require any assistance.
 
 ## Installation
 [![How To Setup PayGate PayWeb for VirtueMart](https://www.appinlet.com/wp-content/uploads/2018/09/VirtueMart-Integration.jpg)](https://www.youtube.com/watch?v=mROuaX0NBsE "How To Setup PayGate PayWeb for VirtueMart")
