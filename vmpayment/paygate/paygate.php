@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2020 PayGate (Pty) Ltd
+ * Copyright (c) 2023 PayGate (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -17,7 +17,7 @@ if ( !class_exists( 'vmPSPlugin' ) ) {
  * Class plgVmPaymentPayGate
  *
  * @author  App Inlet (Pty) Ltd
- * @version 1.0.3
+ * @version 1.0.4
  * @link    https://developer.paygate.co.za/products/shoppingcarts
  */
 class plgVmPaymentPayGate extends vmPSPlugin
@@ -53,7 +53,6 @@ class plgVmPaymentPayGate extends vmPSPlugin
             'test'          => array( 0, 'int' ),
             'id'            => array( '', 'char' ),
             'key'           => array( '', 'char' ),
-            'pw3iframe'     => array( '', 'char' ),
             'successful'    => array( '', 'char' ),
             'failed'        => array( '', 'char' ),
             'payment_logos' => array( '', 'char' ),
@@ -127,8 +126,6 @@ class plgVmPaymentPayGate extends vmPSPlugin
             return false;
         }
 
-        $iframe = $method->get( 'pw3iframe' );
-
         if ( !$this->selectedThisElement( $method->payment_element ) ) {
             return false;
         }
@@ -140,24 +137,6 @@ class plgVmPaymentPayGate extends vmPSPlugin
         $checksum   = $this->generateChecksum( $responseFields, $this->paygateKey );
         $processurl = $this->_processurl;
 
-        // Add CSS for the IFrame
-        vmJsApi::css( 'paygate', 'plugins/vmpayment/paygate/' );
-        if ( $iframe !== '0' ) {
-            $html = <<<HTML
-<p>Kindly wait while you're redirected to PayGate ...</p>
-<div id="payPopup">
-    <div id="payPopupContent">
-        <form action="{$processurl}" method="post" name="redirect" target="pw3Iframe">
-            <input name="PAY_REQUEST_ID" type="hidden" value="{$responseFields['PAY_REQUEST_ID']}" />
-            <input name="CHECKSUM" type="hidden" value="{$checksum}" />
-        </form>
-        <iframe name="pw3Iframe" id="payPopupFrame"></iframe>
-        <script type="text/javascript">document.forms['redirect'].submit();</script>
-    </div>
-</div>
-HTML;
-        } else {
-
             $html = <<<HTML
 <p>Kindly wait while you're redirected to PayGate ...</p>
         <form action="{$processurl}" method="post" name="redirect" >
@@ -166,8 +145,8 @@ HTML;
         </form>
         <script type="text/javascript">document.forms['redirect'].submit();</script>
 HTML;
-        }
-        ( new JInput() )->set( 'html', $html );
+
+        vRequest::setVar ('html', $html);
         return false;
     }
 
@@ -190,29 +169,9 @@ HTML;
             return false;
         }
 
-        if ( isset( $_GET['ifr'] ) ) {
-            $ifr = filter_var( $_GET['ifr'], FILTER_SANITIZE_STRING );
-        }
-
         $method = $this->getVmPluginMethod( $method );
         if ( !$method ) {
             return false;
-        }
-
-        // Check if iFrame is enabled
-        $iframe = $method->get( 'pw3iframe' );
-        if ( $iframe && $ifr !== 'true' ) {
-            $root = JROUTE::_( JURI::root() );
-            $url  = <<<URL
-{$root}index.php?option=com_virtuemart&view=pluginresponse&task=pluginresponsereceived&on={$order}&pm={$pm}&Itemid={$itemid}&ifr=true&PAY_REQUEST_ID={$PAY_REQUEST_ID}&TRANSACTION_STATUS={$TRANSACTION_STATUS}&CHECKSUM={$CHECKSUM}
-URL;
-            echo '<script>window.top.location.href="' . $url . '";</script>';
-            exit;
-        } elseif ( $iframe && $ifr === 'true' ) {
-            $_POST                       = [];
-            $_POST['PAY_REQUEST_ID']     = filter_var( $_GET['PAY_REQUEST_ID'], FILTER_SANITIZE_STRING );
-            $_POST['TRANSACTION_STATUS'] = filter_var( $_GET['TRANSACTION_STATUS'], FILTER_SANITIZE_STRING );
-            $_POST['CHECKSUM']           = filter_var( $_GET['CHECKSUM'], FILTER_SANITIZE_STRING );
         }
 
         if ( !$this->selectedThisElement( $method->payment_element ) ) {
@@ -644,7 +603,7 @@ HTML;
         $reference = self::ORDER_NUMBER . $details->order_number;
         $amount    = number_format( $details->order_total * 100, 0, '', '' );
 
-        $url        = JROUTE::_( JURI::root() . 'index.php?option=com_virtuemart&view=pluginresponse&task=pluginresponsereceived&on=' . $details->order_number . '&pm=' . $details->virtuemart_paymentmethod_id . '&Itemid=' . JRequest::getInt( 'Itemid' ) );
+        $url        = JROUTE::_( JURI::root() . 'index.php?option=com_virtuemart&view=pluginresponse&task=pluginresponsereceived&on=' . $details->order_number . '&pm=' . $details->virtuemart_paymentmethod_id . '&Itemid=' . vRequest::getInt( 'Itemid' ) );
         $date       = date( 'Y-m-d H:i:s' );
         $email      = $details->email;
         $notify_url = JROUTE::_( JURI::root() . 'index.php?option=com_virtuemart&view=pluginresponse&task=pluginnotification&tmpl=component&on=' . $order['details']['BT']->order_number . '&pm=' . $order['details']['BT']->virtuemart_paymentmethod_id . "&XDEBUG_SESSION_START=session_name" . "&o_id={$order['details']['BT']->order_number}" );
@@ -661,7 +620,7 @@ HTML;
             'EMAIL'            => $email,
             'NOTIFY_URL'       => $notify_url,
             'USER1'            => $details->order_number,
-            'USER3'            => 'virtuemart-v1.0.3',
+            'USER3'            => 'virtuemart-v1.0.4',
         );
 
         $initiateFields['CHECKSUM'] = $this->generateChecksum( $initiateFields, $this->paygateKey );

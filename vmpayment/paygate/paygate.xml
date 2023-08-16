@@ -1,28 +1,27 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 /*
- * Copyright (c) 2020 PayGate (Pty) Ltd
+ * Copyright (c) 2023 PayGate (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
  *
  * Released under the GNU General Public License
  */
 -->
-<extension group="vmpayment" method="install" type="plugin" version="1.0.2">
+<extension group="vmpayment" method="install" type="plugin" version="1.0.4">
     <name>PayGate</name>
-    <creationDate>July 27, 2020</creationDate>
+    <creationDate>August 16, 2022</creationDate>
     <author>App Inlet (Pty) Ltd</author>
     <authorEmail>support@paygate.com</authorEmail>
     <authorUrl>http://www.paygate.co.za</authorUrl>
     <copyright>Copyright (c) PayGate. All rights reserved.</copyright>
     <license>http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL</license>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <description>
         <![CDATA[<a href="https://www.paygate.co.za" target="_blank">PayGate</a> Plugin for VirtueMart]]></description>
     <files>
         <filename plugin="paygate">paygate.php</filename>
         <folder>language</folder>
-        <filename>paygate.css</filename>
         <filename>LICENSE</filename>
         <filename>changelog.txt</filename>
     </files>
@@ -44,10 +43,6 @@
                        size="50" type="text"/>
                 <field default="" description="The Encryption Key defined within your PayGate BackOffice"
                        label="Encryption Key" name="key" size="50" type="text"/>
-                <field default="0" description="" label="Use iFrame" name="pw3iframe" type="list">
-                    <option value="0">Disabled</option>
-                    <option value="1">Enabled</option>
-                </field>
                 <field default="C" description="" label="Default Successful Order Status" name="successful"
                        scope="com_virtuemart" type="vmorderstate"/>
                 <field default="X" description="" label="Default Failed Order Status" name="failed"
