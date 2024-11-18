@@ -1,54 +1,108 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 /*
- * Copyright (c) 2023 PayGate (Pty) Ltd
+ * Copyright (c) 2024 Payfast (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
  *
  * Released under the GNU General Public License
  */
 -->
-<extension group="vmpayment" method="install" type="plugin" version="1.0.4">
-    <name>PayGate</name>
+<extension group="vmpayment" method="upgrade" type="plugin" version="2.5">
+    <name>VM Payment - Paygate</name>
     <creationDate>August 16, 2022</creationDate>
     <author>App Inlet (Pty) Ltd</author>
-    <authorEmail>support@paygate.com</authorEmail>
-    <authorUrl>http://www.paygate.co.za</authorUrl>
-    <copyright>Copyright (c) PayGate. All rights reserved.</copyright>
-    <license>http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL</license>
-    <version>1.0.4</version>
+    <authorEmail>support@payfast.help</authorEmail>
+    <authorUrl>https://payfast.io/</authorUrl>
+    <copyright>Copyright (c) Payfast. All rights reserved.</copyright>
+    <license>https://www.gnu.org/licenses/gpl-2.0.html GNU/GPL</license>
+    <version>1.1.0</version>
     <description>
-        <![CDATA[<a href="https://www.paygate.co.za" target="_blank">PayGate</a> Plugin for VirtueMart]]></description>
+        <![CDATA[<a href="https://payfast.io/" target="_blank">Paygate</a> Plugin for VirtueMart]]></description>
     <files>
         <filename plugin="paygate">paygate.php</filename>
         <folder>language</folder>
         <filename>LICENSE</filename>
-        <filename>changelog.txt</filename>
     </files>
 
     <media folder="images" destination="../images/virtuemart/payment">
         <filename>paygate.gif</filename>
+        <filename>mastercard-visa.svg</filename>
+        <filename>sid.svg</filename>
+        <filename>zapper.svg</filename>
+        <filename>snapscan.svg</filename>
+        <filename>paypal.svg</filename>
+        <filename>mobicred.svg</filename>
+        <filename>momopay.svg</filename>
+        <filename>scan-to-pay.svg</filename>
+        <filename>apple-pay.svg</filename>
+        <filename>samsung-pay.svg</filename>
+        <filename>rcs.svg</filename>
     </media>
 
     <vmconfig>
         <fields name="params">
-            <fieldset name="basic" addfieldpath="/administrator/components/com_virtuemart/elements">
-                <field label="&lt;b&gt;PayGate Plugin for VirtueMart&lt;/b&gt;" level="level1" type="spacer"/>
+            <fieldset name="payment" addfieldpath="/plugins/vmpayment/paygate/paygate/fields">
+                <field label="&lt;b&gt;Paygate Plugin for VirtueMart&lt;/b&gt;" level="level1" type="spacer"/>
                 <field default="" level="level1" type="spacer"/>
                 <field default="0" description="" label="Test Mode" name="test" type="list">
                     <option value="0">Disabled</option>
                     <option value="1">Enabled</option>
                 </field>
-                <field default="" description="The PayGate ID assigned to you by PayGate" label="PayGate ID" name="id"
+                <field default="" description="The Paygate ID assigned to you by Paygate" label="Paygate ID" name="id"
                        size="50" type="text"/>
-                <field default="" description="The Encryption Key defined within your PayGate BackOffice"
+                <field default="" description="The Encryption Key defined within your Paygate BackOffice"
                        label="Encryption Key" name="key" size="50" type="text"/>
                 <field default="C" description="" label="Default Successful Order Status" name="successful"
                        scope="com_virtuemart" type="vmorderstate"/>
                 <field default="X" description="" label="Default Failed Order Status" name="failed"
                        scope="com_virtuemart" type="vmorderstate"/>
-                <field default="" description="" directory="/images/virtuemart/payment" exclude="^_"
-                       hide_default="1" hide_none="1" label="PayGate Logo" name="payment_logos" type="vmfiles"/>
+                <field default="paygate.gif" description="" directory="/images/virtuemart/payment" exclude="^_"
+                       hide_default="1" hide_none="1" label="Paygate Logo" name="payment_logos" type="vmfiles"/>
+                <field default="0" description="" label="Card" name="card" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="SiD Secure EFT" name="sid_secure_eft" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="Zapper" name="zapper" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="SnapScan" name="snapscan" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="PayPal" name="paypal" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="Mobicred" name="mobicred" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="MoMoPay" name="momopay" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="MasterPass" name="masterpass" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="Apple Pay" name="apple_pay" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="Samsung Pay" name="samsung_pay" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
+                <field default="0" description="" label="RCS" name="rcs" type="list">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                </field>
             </fieldset>
         </fields>
     </vmconfig>
