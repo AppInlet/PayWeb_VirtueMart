@@ -1,5 +1,13 @@
 # Changelog
 
+## [[1.2.0]](https://github.com/Paygate/PayWeb_VirtueMart/releases/tag/v1.2.0)
+
+### Added
+
+- Code quality improvements.
+- Upgraded to PHP 8.2.
+- Integrated with the Payfast Common Library.
+
 ## [[1.1.0]](https://github.com/Paygate/PayWeb_VirtueMart/releases/tag/v1.1.0)
 
 ### Added

@@ -1,0 +1,11 @@
+{
+  "require": {
+    "payfast/payfast-common": "v1.4.0"
+  },
+  "description": "VirtueMart PayGate Payment Plugin",
+  "autoload": {
+    "psr-4": {
+      "Paygate\\": "classes/"
+    }
+  }
+}

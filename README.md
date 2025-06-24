@@ -1,6 +1,6 @@
 # PayWeb_VirtueMart
 
-## Paygate VirtueMart plugin v1.1.0 for VirtueMart v4.2.18
+## Paygate VirtueMart plugin v1.2.0 for VirtueMart v4.4.4
 
 This is the Paygate plugin for VirtueMart. Please feel free to contact the Payfast support team at
 support@payfast.help should you require any assistance.
@@ -10,7 +10,7 @@ support@payfast.help should you require any assistance.
 1. **Download the Plugin**
 
     - Visit the [releases page](https://github.com/Paygate/PayWeb_VirtueMart/releases) and
-      download [vmpayment.zip](https://github.com/Paygate/PayWeb_VirtueMart/releases/download/v1.1.0/vmpayment.zip).
+      download [vmpayment.zip](https://github.com/Paygate/PayWeb_VirtueMart/releases/download/v1.2.0/vmpayment.zip).
 
 2. **Install the Plugin**
 

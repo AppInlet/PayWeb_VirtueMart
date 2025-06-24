@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 /*
- * Copyright (c) 2024 Payfast (Pty) Ltd
+ * Copyright (c) 2025 Payfast (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -16,12 +16,15 @@
     <authorUrl>https://payfast.io/</authorUrl>
     <copyright>Copyright (c) Payfast. All rights reserved.</copyright>
     <license>https://www.gnu.org/licenses/gpl-2.0.html GNU/GPL</license>
-    <version>1.1.0</version>
-    <description>
-        <![CDATA[<a href="https://payfast.io/" target="_blank">Paygate</a> Plugin for VirtueMart]]></description>
+    <version>1.2.0</version>
+    <description><![CDATA[<a href="https://payfast.io/" target="_blank">Paygate</a> Plugin for VirtueMart]]></description>
     <files>
         <filename plugin="paygate">paygate.php</filename>
+        <filename>composer.json</filename>
         <folder>language</folder>
+        <folder>classes</folder>
+        <folder>vendor</folder>
+        <folder>images</folder>
         <filename>LICENSE</filename>
     </files>
 
