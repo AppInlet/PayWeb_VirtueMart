@@ -1,16 +1,22 @@
 <?php
 
 /*
- * Copyright (c) 2024 Payfast (Pty) Ltd
+ * Copyright (c) 2025 Payfast (Pty) Ltd
  *
  * Author: App Inlet (Pty) Ltd
  *
  * Released under the GNU General Public License
  */
 
+require_once __DIR__ . '/vendor/autoload.php';
+
 use Joomla\CMS\Factory;
 use Joomla\Database\DatabaseInterface;
 use Joomla\CMS\Router\Route;
+use Paygate\PaygateSettings;
+use Paygate\PaygateConstants;
+use Paygate\PaygatePaymentOptions;
+use Payfast\PayfastCommon\Gateway\Request\PaymentRequest;
 
 defined('_JEXEC') || die();
 
@@ -23,7 +29,7 @@ if (!class_exists('vmPSPlugin')) {
  * Class plgVmPaymentPaygate
  *
  * @author  App Inlet (Pty) Ltd
- * @version 1.1.0
+ * @version 1.2.0
  * @link    https://developer.paygate.co.za/products/shoppingcarts
  */
 class plgVmPaymentPaygate extends vmPSPlugin
@@ -33,33 +39,6 @@ class plgVmPaymentPaygate extends vmPSPlugin
 
     public $paygateId;
     public $paygateKey;
-
-    const ORDER_NUMBER = 'Order #';
-
-    // Payment Methods
-    const CREDIT_CARD_METHOD   = 'CC';
-    const BANK_TRANSFER_METHOD = 'BT';
-    const ZAPPER_METHOD        = 'EW-ZAPPER';
-    const SNAPSCAN_METHOD      = 'EW-SNAPSCAN';
-    const PAYPAL_METHOD        = 'EW-PAYPAL';
-    const MOBICRED_METHOD      = 'EW-MOBICRED';
-    const MOMOPAY_METHOD       = 'EW-MOMOPAY';
-    const SCANTOPAY_METHOD     = 'EW-MASTERPASS';
-    const SAMSUNG_PAY_METHOD   = 'EW-Samsungpay';
-    const APPLE_PAY_METHOD     = 'CC-Applepay';
-    const RCS_METHOD           = 'CC-RCS';
-    // Payment method descriptions
-    const CREDIT_CARD_DESCRIPTION   = 'Card';
-    const BANK_TRANSFER_DESCRIPTION = 'SID';
-    const ZAPPER_DESCRIPTION        = 'Zapper';
-    const SNAPSCAN_DESCRIPTION      = 'SnapScan';
-    const PAYPAL_DESCRIPTION        = 'PayPal';
-    const MOBICRED_DESCRIPTION      = 'Mobicred';
-    const MOMOPAY_DESCRIPTION       = 'Momopay';
-    const SCANTOPAY_DESCRIPTION     = 'MasterPass';
-    const SAMSUNG_DESCRIPTION       = 'Samsung Pay';
-    const APPLE_DESCRIPTION         = 'ApplePay';
-    const RCS_DESCRIPTION           = 'RCS';
 
     /**
      * Save settings
@@ -73,59 +52,14 @@ class plgVmPaymentPaygate extends vmPSPlugin
 
         $this->_loggable = true;
 
-        $this->tableFields  = array_keys($this->getTableSQLFields());
-        $this->_tablepkey   = 'id';
-        $this->_tableId     = 'id';
-        $this->_initiateurl = 'https://secure.paygate.co.za/payweb3/initiate.trans';
-        $this->_processurl  = 'https://secure.paygate.co.za/payweb3/process.trans';
+        $this->tableFields = array_keys($this->getTableSQLFields());
+        $this->_tablepkey  = 'id';
+        $this->_tableId    = 'id';
 
-        $settings = array(
-            'test'           => array(0, 'int'),
-            'id'             => array('', 'char'),
-            'key'            => array('', 'char'),
-            'successful'     => array('', 'char'),
-            'failed'         => array('', 'char'),
-            'payment_logos'  => array('', 'char'),
-            'card'           => array(0, 'int'),
-            'sid_secure_eft' => array(0, 'int'),
-            'zapper'         => array(0, 'int'),
-            'snapscan'       => array(0, 'int'),
-            'paypal'         => array(0, 'int'),
-            'mobicred'       => array(0, 'int'),
-            'momopay'        => array(0, 'int'),
-            'masterpass'     => array(0, 'int'),
-            'apple_pay'      => array(0, 'int'),
-            'samsung_pay'    => array(0, 'int'),
-            'rcs'            => array(0, 'int'),
-        );
+        $settings = PaygateSettings::SETTINGS;
 
         $this->addVarsToPushCore($settings, 1);
         $this->setConfigParameterable($this->_configTableFieldName, $settings);
-    }
-
-    /**
-     * @ If curl is working on the server
-     */
-    public function _is_curl_installed()
-    {
-        return in_array('curl', get_loaded_extensions());
-    }
-
-    /**
-     * @ Generate the checksum string
-     */
-
-    public function generateChecksum($postData, $paygetkey)
-    {
-        $checksum = '';
-        foreach ($postData as $value) {
-            if ($value != '') {
-                $checksum .= $value;
-            }
-        }
-        $checksum .= $paygetkey;
-
-        return md5($checksum);
     }
 
     /**
@@ -184,22 +118,23 @@ class plgVmPaymentPaygate extends vmPSPlugin
             return false;
         }
 
-        $responseFields = $this->initiateTransaction($cart, $order);
+        $this->paygateId  = $method->id;
+        $this->paygateKey = $method->key;
+
+        $paymentRequest = new PaymentRequest($this->paygateId, $this->paygateKey);
+        $responseFields = $this->initiateTransaction($cart, $order, $paymentRequest);
 
         unset($responseFields['CHECKSUM']);
 
-        $checksum   = $this->generateChecksum($responseFields, $this->paygateKey);
-        $processurl = $this->_processurl;
+        $checksum = md5(implode('', $responseFields) . $this->paygateKey);
 
         $this->saveCartBeforeCheckout($order);
 
-        $html = <<<HTML
+        $htmlForm = $paymentRequest->getRedirectHTML($responseFields['PAY_REQUEST_ID'], $checksum);
+        $html     = <<<HTML
 <p>Kindly wait while you're redirected to Paygate ...</p>
-        <form action="{$processurl}" method="post" name="redirect" >
-            <input name="PAY_REQUEST_ID" type="hidden" value="{$responseFields['PAY_REQUEST_ID']}" />
-            <input name="CHECKSUM" type="hidden" value="{$checksum}" />
-        </form>
-        <script type="text/javascript">document.forms['redirect'].submit();</script>
+$htmlForm
+<script type="text/javascript">document.getElementById('paygate_payment_form').submit();</script>
 HTML;
 
         vRequest::setVar('html', $html);
@@ -217,68 +152,38 @@ HTML;
      */
     public function plgVmOnPaymentResponseReceived(&$html)
     {
-        $method             = filter_var($_GET['pm'], FILTER_SANITIZE_STRING);
-        $order              = filter_var($_GET['on'], FILTER_SANITIZE_STRING);
-        $pm                 = filter_var($_GET['pm'], FILTER_SANITIZE_STRING);
-        $itemid             = filter_var($_GET['Itemid'], FILTER_SANITIZE_STRING);
-        $PAY_REQUEST_ID     = filter_var($_POST['PAY_REQUEST_ID'], FILTER_SANITIZE_STRING);
-        $TRANSACTION_STATUS = filter_var($_POST['TRANSACTION_STATUS'], FILTER_SANITIZE_STRING);
-        $CHECKSUM           = filter_var($_POST['CHECKSUM'], FILTER_SANITIZE_STRING);
-        if (!$order) {
-            return false;
-        }
+        $method            = htmlspecialchars($_GET['pm'] ?? '', ENT_QUOTES, 'UTF-8');
+        $order             = htmlspecialchars($_GET['on'] ?? '', ENT_QUOTES, 'UTF-8');
+        $payRequestId      = htmlspecialchars($_POST['PAY_REQUEST_ID'] ?? '', ENT_QUOTES, 'UTF-8');
+        $transactionStatus = htmlspecialchars($_POST['TRANSACTION_STATUS'] ?? '', ENT_QUOTES, 'UTF-8');
 
         $method = $this->getVmPluginMethod($method);
-        if (!$method) {
+
+        if (!$method && !$this->selectedThisElement($method->payment_element) && !$order) {
             return false;
         }
 
-        if (!$this->selectedThisElement($method->payment_element)) {
-            return false;
-        }
-
-        $status    = $_POST['TRANSACTION_STATUS'];
+        $status    = $transactionStatus;
         $model     = VmModel::getModel('orders');
         $id        = $model->getOrderIdByOrderNumber($order);
         $or        = $model->getOrder($id);
         $detail    = $or['details']['BT'];
-        $reference = self::ORDER_NUMBER . $detail->order_number;
+        $reference = PaygateConstants::ORDER_NUMBER . $detail->order_number;
         $db        = Factory::getDbo();
 
         // Check validity of checksum before going any further
         $sent_sum   = array_pop($_POST);
-        $paygateid  = $method->get('id');
-        $paygatekey = $method->get('key');
+        $paygateid  = $method->get('id') ?? '';
+        $paygatekey = $method->get('key') ?? '';
 
-        if ($method->get('test')) {
-            $paygateid  = '10011072130';
-            $paygatekey = 'secret';
-        }
         $our_sum = md5($paygateid . implode('', $_POST) . $reference . $paygatekey);
         $sumok   = hash_equals($sent_sum, $our_sum);
-        if ($sumok) {
+        if (!$sumok) {
+            $displayComment = 'The transaction could not be verified. Please contact the store';
+        } else {
             if ($detail->order_status === 'P') {
-                if ($status === '1') {
-                    $displayComment                = vmText::_('VMPAYMENT_PAYGATE_SUCCESSFUL_PAYMENT');
-                    $details['customer_notified']  = 1;
-                    $details['order_status']       = $method->successful;
-                    $details['comments']           = vmText::sprintf(
-                        'VMPAYMENT_PAYGATE_SUCCESSFUL_PAYMENT_COMMENT',
-                        $_POST['PAY_REQUEST_ID']
-                    );
-                    $fields['virtuemart_order_id'] = $id;
-                } else {
-                    if ($status === '2') {
-                        $details['comments'] = vmText::_('VMPAYMENT_PAYGATE_DECLINED_PAYMENT');
-                        $displayComment      = vmText::_('VMPAYMENT_PAYGATE_DECLINED_PAYMENT_COMMENT');
-                    } else {
-                        $details['comments'] = vmText::_('VMPAYMENT_PAYGATE_FAILURE_PAYMENT');
-                        $displayComment      = vmText::_('VMPAYMENT_PAYGATE_FAILURE_PAYMENT_COMMENT');
-                    }
-                    $details['customer_notified']  = 1;
-                    $details['order_status']       = $method->failed;
-                    $fields['virtuemart_order_id'] = $id;
-                }
+                list($displayComment, $details) = $this->setTransactionComment($status, $method, $payRequestId);
+                $fields['virtuemart_order_id'] = $id;
 
                 $post = '';
                 foreach ($_POST as $k => $v) {
@@ -335,40 +240,23 @@ HTML;
                 $virtuemartUserId = !empty($restoredCart->ST['virtuemart_user_id']) ?
                     $restoredCart->ST['virtuemart_user_id'] : $restoredCart->BT['virtuemart_user_id'];
 
-                if (empty($virtuemartUserId) || $virtuemartUserId == 0) {
-                    // The user is a guest
-                    $isGuest = true;
-                } else {
-                    // The user is logged in
-                    $isGuest = false;
-                }
+                $isGuest = $this->isGuest($virtuemartUserId);
 
                 // Payment declined or failed: restore the cart for guest users
-                if ($isGuest) {
-                    $session = Factory::getSession();
-
-                    if ($savedCartData) {
-                        // Decode the JSON cart data to a PHP object
-                        $session->set('vmcart', json_encode($restoredCart), 'vm');
-
-                        // Restore the cart properties
-                        $this->getCartDataToStore($restoredCart);
-                    }
-                }
+                $this->restoreCartForGuests($isGuest, $savedCartData, $restoredCart);
 
                 // Set the failure message
                 $checkoutUrl = Route::_('index.php?option=com_virtuemart&view=cart', false);
-                if ($status === '2') {
-                    $app->enqueueMessage('Your payment was declined. Please try again.', 'error');
-                } else {
-                    $app->enqueueMessage('Your payment has failed. Please try again.', 'error');
-                }
+
+                $message = ($status === '2')
+                    ? 'Your payment was declined. Please try again.'
+                    : 'Your payment has failed. Please try again.';
+
+                $app->enqueueMessage($message, 'error');
 
                 // Redirect back to the cart without clearing it
                 $app->redirect($checkoutUrl);
             }
-        } else {
-            $displayComment = 'The transaction could not be verified. Please contact the store';
         }
 
         $html = <<<HTML
@@ -378,7 +266,7 @@ HTML;
         return true;
     }
 
-    public function saveCartBeforeCheckout($order)
+    public function saveCartBeforeCheckout($order): void
     {
         $details   = $order['details']['BT'];
         $cart      = VirtueMartCart::getCart();
@@ -475,38 +363,31 @@ HTML;
 
         // Notify Paygate
         echo 'OK';
-        $errors       = false;
-        $paygate_data = array();
+        $errors = false;
 
         $notify_data = array();
         // Get notify data
-        if (!$errors) {
-            $paygate_data = $this->getPostData();
-            if ($paygate_data === false) {
-                $errors = true;
-            }
-        }
+        $paygate_data = $this->getPostData();
+
+        $errors = $paygate_data === false;
 
         $order_number = $paygate_data['USER1'];
 
         $virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber($paygate_data['USER1']);
 
-        if (!$virtuemart_order_id) {
+        if (empty($virtuemart_order_id)) {
             exit;
         }
 
-        $method = $_GET['pm'];
+        $method = $_GET['pm'] ?? null;
+        $order  = $_GET['on'] ?? null;
+
+        return $method && $order ? true : false;
+
         $method = $this->getVmPluginMethod($method);
-        if (!$method) {
-            return false;
-        }
-        if (!$this->selectedThisElement($method->payment_element)) {
-            return false;
-        }
-        $order = $_GET['on'];
-        if (!$order) {
-            return false;
-        }
+
+        return $method && $this->selectedThisElement($method->payment_element);
+
         $model   = new VirtueMartModelOrders();
         $payment = $model->getOrderIdByOrderNumber($order_number);
 
@@ -526,9 +407,7 @@ HTML;
                     $checkSumParams .= $val;
                 }
 
-                if (empty($notify_data)) {
-                    $errors = true;
-                }
+                $errors = empty($notify_data);
             }
             $checkSumParams .= $method->$key;
         }
@@ -536,33 +415,25 @@ HTML;
         // Verify security signature
         if (!$errors) {
             $checkSumParams = md5($checkSumParams);
-            if ($checkSumParams != $paygate_data['CHECKSUM']) {
-                $errors = true;
-            }
+            $errors         = md5($checkSumParams) !== $paygate_data['CHECKSUM'];
         }
 
         if (!$errors) {
-            $status  = 'P';
+            $status  = 'P'; // Default status
             $comment = 'You unfortunately did not complete payment with Paygate';
-            switch ($paygate_data['TRANSACTION_STATUS']) {
-                case '1':
-                    $comment = 'Notify response: Payment was successfully completed with Paygate';
-                    $status  = 'C';
-                    break;
-                case '2':
-                    $comment = 'Notify response: Payment was declined with Paygate';
-                    $status  = 'X';
-                    break;
-                case '0':
-                case '4':
-                    $comment = 'Notify response: You unfortunately did not complete payment with Paygate';
-                    $status  = 'X';
-                    break;
 
-                default:
-                    // If unknown status, do nothing (safest course of action)
-                    break;
-            }
+            $status = match ($paygate_data['TRANSACTION_STATUS'] ?? null) {
+                '1' => 'C',
+                '2', '0', '4' => 'X',
+                default => $status,
+            };
+
+            $comment = match ($paygate_data['TRANSACTION_STATUS'] ?? null) {
+                '1' => 'Notify response: Payment was successfully completed with Paygate',
+                '2' => 'Notify response: Payment was declined with Paygate',
+                '0', '4' => 'Notify response: You unfortunately did not complete payment with Paygate',
+                default => $comment,
+            };
 
             $id                            = $model->getOrderIdByOrderNumber($order_number);
             $details['customer_notified']  = 0;
@@ -597,9 +468,9 @@ HTML;
      * @param $method
      * @param $cart_prices
      *
-     * @return true: if the conditions are fulfilled, false otherwise
+     * @return boolean: if the conditions are fulfilled, false otherwise
      */
-    protected function checkConditions($cart, $method, $cart_prices)
+    protected function checkConditions($cart, $method, $cart_prices): bool
     {
         $this->convert($method);
 
@@ -607,8 +478,8 @@ HTML;
 
         $amount      = $cart_prices['salesPrice'];
         $amount_cond = ($amount >= $method->min_amount && $amount <= $method->max_amount
-                        ||
-                        ($method->min_amount <= $amount && ($method->max_amount == 0)));
+            ||
+            ($method->min_amount <= $amount && ($method->max_amount == 0)));
 
         $countries = array();
         if (!empty($method->countries)) {
@@ -637,7 +508,7 @@ HTML;
     /**
      * @param $method
      */
-    public function convert($method)
+    public function convert($method): void
     {
         $method->cost_percent_total   = null;
         $method->cost_per_transaction = null;
@@ -651,72 +522,8 @@ HTML;
         $method->max_amount = (float)$method->max_amount;
     }
 
-    // Updated curlPost function
-    public function curlPost($url, $fields)
-    {
-        if ($this->_is_curl_installed()) {
-            $fields_string = '';
-            foreach ($fields as $key => $value) {
-                $fields_string .= $key . '=' . urlencode($value) . '&';
-            }
-            $fields_string = rtrim($fields_string, '&');
-            // Get host safely
-            $possibleHostSources   = array('HTTP_X_FORWARDED_HOST', 'HTTP_HOST', 'SERVER_NAME', 'SERVER_ADDR');
-            $sourceTransformations = array(
-                "HTTP_X_FORWARDED_HOST" => function ($value) {
-                    $elements = explode(',', $value);
 
-                    return trim(end($elements));
-                },
-            );
-            $host                  = '';
-            foreach ($possibleHostSources as $source) {
-                if (!empty($host)) {
-                    break;
-                }
-
-                if (empty($_SERVER[$source])) {
-                    continue;
-                }
-
-                $host = $_SERVER[$source];
-                if (array_key_exists($source, $sourceTransformations)) {
-                    $host = $sourceTransformations[$source]($host);
-                }
-            }
-
-            // Remove port number from host
-            $host = trim(preg_replace('/:\d+$/', '', $host));
-
-            $ch = curl_init();
-            if (!$this->isSsl()) {
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-            }
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_NOBODY, false);
-            curl_setopt($ch, CURLOPT_REFERER, $host);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
-            $result = curl_exec($ch);
-            curl_close($ch);
-
-            return $result;
-        } else {
-            echo 'cURL is NOT installed on this server. http://php.net/manual/en/curl.setup.php';
-            exit;
-        }
-    }
-
-    public function isSsl()
-    {
-        $url = parse_url(JURI::base());
-
-        return ($url['scheme'] == 'https');
-    }
-
-    public function getPostData()
+    public function getPostData(): false|array
     {
         // Posted variables from ITN
         $nData = $_POST;
@@ -728,9 +535,9 @@ HTML;
 
         // Return "false" if no data was received
         if (empty($nData)) {
-            return (false);
+            return false;
         } else {
-            return ($nData);
+            return $nData;
         }
     }
 
@@ -746,7 +553,7 @@ HTML;
         global $module;
 
         // Only log if debugging is enabled
-        if (PF_DEBUG) {
+        if ($this->_loggable) {
             if ($close) {
                 fclose($fh);
             } else {
@@ -771,10 +578,11 @@ HTML;
      *
      * @param $cart
      * @param $order
+     * @param PaymentRequest $paymentRequest
      *
      * @return array
      */
-    public function initiateTransaction($cart, $order)
+    public function initiateTransaction($cart, $order, PaymentRequest $paymentRequest)
     {
         $details = $order['details']['BT'];
         $method  = $this->getVmPluginMethod($details->virtuemart_paymentmethod_id);
@@ -786,15 +594,7 @@ HTML;
             return false;
         }
 
-        $this->logInfo(self::ORDER_NUMBER . $details->order_number . ' confirmed', 'message');
-
-        if ($method->test) {
-            $this->paygateId  = '10011072130';
-            $this->paygateKey = 'secret';
-        } else {
-            $this->paygateId  = $method->id;
-            $this->paygateKey = $method->key;
-        }
+        $this->logInfo(PaygateConstants::ORDER_NUMBER . $details->order_number . ' confirmed', 'message');
 
         $db = JFactory::getDBO();
         // Get country code 3
@@ -813,7 +613,7 @@ HTML;
         $db->setQuery($query);
         $currency_code3 = $db->loadResult();
 
-        $reference = self::ORDER_NUMBER . $details->order_number;
+        $reference = PaygateConstants::ORDER_NUMBER . $details->order_number;
         $amount    = number_format($details->order_total * 100, 0, '', '');
 
         $url        = JROUTE::_(
@@ -841,14 +641,15 @@ HTML;
             'EMAIL'            => $email,
         );
 
-        $initiateFields = $this->paymentOptionsDataToSend($initiateFields);
+        $paygatePaymentOptions = new PaygatePaymentOptions();
+        $initiateFields        = $paygatePaymentOptions->getPaymentOptions($initiateFields);
 
         $initiateFields['NOTIFY_URL'] = $notify_url;
         $initiateFields['USER1']      = $details->order_number;
-        $initiateFields['USER3']      = 'virtuemart-v1.1.0';
+        $initiateFields['USER3']      = 'virtuemart-v1.2.0';
 
-        $initiateFields['CHECKSUM'] = $this->generateChecksum($initiateFields, $this->paygateKey);
-        $response                   = $this->curlPost($this->_initiateurl, $initiateFields);
+        $response = $paymentRequest->initiate($initiateFields);
+
         parse_str($response, $responseFields);
 
         return $responseFields;
@@ -994,145 +795,88 @@ HTML;
         return $html;
     }
 
-    public function setPaymentMethods($method)
+    public function setPaymentMethods($method): array
     {
         $paymentOptionsArray = array();
 
         if ($method->card == '1') {
-            $paymentOptionsArray[self::CREDIT_CARD_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::CREDIT_CARD_METHOD] = array(
                 'image'       => $this->displayLogos('mastercard-visa.svg') . ' ',
-                'description' => self::CREDIT_CARD_DESCRIPTION
+                'description' => PaygateConstants::CREDIT_CARD_DESCRIPTION
             );
         }
 
         if ($method->sid_secure_eft == '1') {
-            $paymentOptionsArray[self::BANK_TRANSFER_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::BANK_TRANSFER_METHOD] = array(
                 'image'       => $this->displayLogos('sid.svg') . ' ',
-                'description' => self::BANK_TRANSFER_DESCRIPTION
+                'description' => PaygateConstants::BANK_TRANSFER_DESCRIPTION
             );
         }
 
         if ($method->zapper == '1') {
-            $paymentOptionsArray[self::ZAPPER_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::ZAPPER_METHOD] = array(
                 'image'       => $this->displayLogos('zapper.svg') . ' ',
-                'description' => self::ZAPPER_DESCRIPTION
+                'description' => PaygateConstants::ZAPPER_DESCRIPTION
             );
         }
 
         if ($method->snapscan == '1') {
-            $paymentOptionsArray[self::SNAPSCAN_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::SNAPSCAN_METHOD] = array(
                 'image'       => $this->displayLogos('snapscan.svg') . ' ',
-                'description' => self::SNAPSCAN_DESCRIPTION
+                'description' => PaygateConstants::SNAPSCAN_DESCRIPTION
             );
         }
 
         if ($method->paypal == '1') {
-            $paymentOptionsArray[self::PAYPAL_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::PAYPAL_METHOD] = array(
                 'image'       => $this->displayLogos('paypal.svg') . ' ',
-                'description' => self::PAYPAL_DESCRIPTION
+                'description' => PaygateConstants::PAYPAL_DESCRIPTION
             );
         }
 
         if ($method->mobicred == '1') {
-            $paymentOptionsArray[self::MOBICRED_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::MOBICRED_METHOD] = array(
                 'image'       => $this->displayLogos('mobicred.svg') . ' ',
-                'description' => self::MOBICRED_DESCRIPTION
+                'description' => PaygateConstants::MOBICRED_DESCRIPTION
             );
         }
 
         if ($method->momopay == '1') {
-            $paymentOptionsArray[self::MOMOPAY_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::MOMOPAY_METHOD] = array(
                 'image'       => $this->displayLogos('momopay.svg') . ' ',
-                'description' => self::MOMOPAY_DESCRIPTION
+                'description' => PaygateConstants::MOMOPAY_DESCRIPTION
             );
         }
 
         if ($method->masterpass == '1') {
-            $paymentOptionsArray[self::SCANTOPAY_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::SCANTOPAY_METHOD] = array(
                 'image'       => $this->displayLogos('scan-to-pay.svg') . ' ',
-                'description' => self::SCANTOPAY_DESCRIPTION
+                'description' => PaygateConstants::SCANTOPAY_DESCRIPTION
             );
         }
 
         if ($method->apple_pay == '1') {
-            $paymentOptionsArray[self::APPLE_PAY_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::APPLE_PAY_METHOD] = array(
                 'image'       => $this->displayLogos('apple-pay.svg') . ' ',
-                'description' => self::APPLE_DESCRIPTION
+                'description' => PaygateConstants::APPLE_DESCRIPTION
             );
         }
 
         if ($method->samsung_pay == '1') {
-            $paymentOptionsArray[self::SAMSUNG_PAY_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::SAMSUNG_PAY_METHOD] = array(
                 'image'       => $this->displayLogos('samsung-pay.svg') . ' ',
-                'description' => self::SAMSUNG_DESCRIPTION
+                'description' => PaygateConstants::SAMSUNG_DESCRIPTION
             );
         }
 
         if ($method->rcs == '1') {
-            $paymentOptionsArray[self::RCS_METHOD] = array(
+            $paymentOptionsArray[PaygateConstants::RCS_METHOD] = array(
                 'image'       => $this->displayLogos('rcs.svg') . ' ',
-                'description' => self::RCS_DESCRIPTION
+                'description' => PaygateConstants::RCS_DESCRIPTION
             );
         }
 
         return $paymentOptionsArray;
-    }
-
-    public function paymentOptionsDataToSend(array $initiateFields)
-    {
-        $dataToSend = $_REQUEST['payment_method'];
-        if (!empty($_REQUEST['payment_method'])) {
-            switch ($_REQUEST['payment_method']) {
-                case self::CREDIT_CARD_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::CREDIT_CARD_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::CREDIT_CARD_DESCRIPTION;
-                    break;
-                case self::BANK_TRANSFER_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::BANK_TRANSFER_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::BANK_TRANSFER_DESCRIPTION;
-                    break;
-                case self::ZAPPER_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::ZAPPER_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::ZAPPER_DESCRIPTION;
-                    break;
-                case self::SNAPSCAN_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::SNAPSCAN_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::SNAPSCAN_DESCRIPTION;
-                    break;
-                case self::PAYPAL_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::PAYPAL_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::PAYPAL_DESCRIPTION;
-                    break;
-                case self::MOBICRED_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::MOBICRED_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::MOBICRED_DESCRIPTION;
-                    break;
-                case self::MOMOPAY_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::MOMOPAY_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::MOMOPAY_DESCRIPTION;
-                    break;
-                case self::SCANTOPAY_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::SCANTOPAY_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::SCANTOPAY_DESCRIPTION;
-                    break;
-                case self::APPLE_PAY_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::APPLE_PAY_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = substr(self::APPLE_PAY_METHOD, 3);
-                    break;
-                case self::SAMSUNG_PAY_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::SAMSUNG_PAY_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = substr(self::SAMSUNG_PAY_METHOD, 3);
-                    break;
-                case self::RCS_METHOD:
-                    $initiateFields['PAY_METHOD']        = substr(self::RCS_METHOD, 0, 2);
-                    $initiateFields['PAY_METHOD_DETAIL'] = self::RCS_DESCRIPTION;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        return $initiateFields;
     }
 
     public function onSelectCheck(VirtueMartCart $cart)
@@ -1163,7 +907,7 @@ HTML;
 
         $db = Factory::getContainer()->get(DatabaseInterface::class);
         $q  = 'SELECT * FROM `' . $this->_tablename . '` '
-              . 'WHERE `virtuemart_order_id` = ' . $db->quote($virtuemart_order_id);
+            . 'WHERE `virtuemart_order_id` = ' . $db->quote($virtuemart_order_id);
         $db->setQuery($q);
         if (!($paymentTable = $db->loadObject())) {
             return '';
@@ -1171,7 +915,7 @@ HTML;
 
         $this->getPaymentCurrency($paymentTable);
         $q  = 'SELECT `currency_code_3` FROM `#__virtuemart_currencies` WHERE `virtuemart_currency_id`="'
-              . $db->quote($paymentTable->payment_currency) . '" ';
+            . $db->quote($paymentTable->payment_currency) . '" ';
         $db = Factory::getContainer()->get(DatabaseInterface::class);
         $db->setQuery($q);
         $html = '<table class="adminlist">' . "\n";
@@ -1186,5 +930,75 @@ HTML;
         $html .= '</table>' . "\n";
 
         return $html;
+    }
+
+    /**
+     * @param bool $isGuest
+     * @param $savedCartData
+     * @param object $restoredCart
+     *
+     * @return void
+     */
+    protected function restoreCartForGuests(bool $isGuest, $savedCartData, object $restoredCart): void
+    {
+        if ($isGuest) {
+            $session = Factory::getSession();
+
+            if ($savedCartData) {
+                // Decode the JSON cart data to a PHP object
+                $session->set('vmcart', json_encode($restoredCart), 'vm');
+
+                // Restore the cart properties
+                $this->getCartDataToStore($restoredCart);
+            }
+        }
+    }
+
+    /**
+     * @param mixed $virtuemartUserId
+     *
+     * @return bool
+     */
+    protected function isGuest(mixed $virtuemartUserId): bool
+    {
+        if (empty($virtuemartUserId) || $virtuemartUserId == 0) {
+            // The user is a guest
+            $isGuest = true;
+        } else {
+            // The user is logged in
+            $isGuest = false;
+        }
+
+        return $isGuest;
+    }
+
+    /**
+     * @param string $status
+     * @param $method
+     * @param string $payRequestId
+     * @return array
+     */
+    protected function setTransactionComment(string $status, $method, string $payRequestId): array
+    {
+        if ($status === '1') {
+            $displayComment               = vmText::_('VMPAYMENT_PAYGATE_SUCCESSFUL_PAYMENT');
+            $details['customer_notified'] = 1;
+            $details['order_status']      = $method->successful;
+            $details['comments']          = vmText::sprintf(
+                'VMPAYMENT_PAYGATE_SUCCESSFUL_PAYMENT_COMMENT',
+                $payRequestId
+            );
+        } else {
+            if ($status === '2') {
+                $details['comments'] = vmText::_('VMPAYMENT_PAYGATE_DECLINED_PAYMENT');
+                $displayComment      = vmText::_('VMPAYMENT_PAYGATE_DECLINED_PAYMENT_COMMENT');
+            } else {
+                $details['comments'] = vmText::_('VMPAYMENT_PAYGATE_FAILURE_PAYMENT');
+                $displayComment      = vmText::_('VMPAYMENT_PAYGATE_FAILURE_PAYMENT_COMMENT');
+            }
+            $details['customer_notified'] = 1;
+            $details['order_status']      = $method->failed;
+        }
+        return array($displayComment, $details);
     }
 }
